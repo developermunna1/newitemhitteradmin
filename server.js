@@ -38,6 +38,7 @@ const saveDB = (data) => {
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
 };
 
+// Check user status
 app.get('/api/check', (req, res) => {
     const id = req.query.id;
     if (!id) return res.status(400).json({ approved: false, error: "No ID provided" });
@@ -46,19 +47,31 @@ app.get('/api/check', (req, res) => {
     const user = db.users.find(u => u.id === id);
 
     if (user) {
-        return res.json({ approved: user.approved, status: user.status });
+        if (user.banned) {
+            return res.json({ approved: false, banned: true, status: 'banned' });
+        }
+        return res.json({ approved: user.approved, banned: false, status: user.status });
     } else {
-        db.users.push({ id, approved: false, status: 'pending', firstSeen: new Date().toISOString() });
+        // Auto-register new ID as pending
+        db.users.push({ 
+            id, 
+            approved: false, 
+            banned: false, 
+            status: 'pending', 
+            firstSeen: new Date().toISOString() 
+        });
         saveDB(db);
-        return res.json({ approved: false, status: 'pending' });
+        return res.json({ approved: false, banned: false, status: 'pending' });
     }
 });
 
+// Admin API: List all users
 app.get('/api/admin/users', (req, res) => {
     const db = loadDB();
     res.json(db.users);
 });
 
+// Admin API: Toggle approval
 app.post('/api/admin/approve', (req, res) => {
     const { id, approved } = req.body;
     const db = loadDB();
@@ -66,7 +79,29 @@ app.post('/api/admin/approve', (req, res) => {
     
     if (userIndex !== -1) {
         db.users[userIndex].approved = approved;
+        db.users[userIndex].banned = false; // Unban if approved
         db.users[userIndex].status = approved ? 'active' : 'pending';
+        saveDB(db);
+        res.json({ success: true });
+    } else {
+        res.status(404).json({ success: false, error: "User not found" });
+    }
+});
+
+// Admin API: Ban user
+app.post('/api/admin/ban', (req, res) => {
+    const { id, banned } = req.body;
+    const db = loadDB();
+    const userIndex = db.users.findIndex(u => u.id === id);
+    
+    if (userIndex !== -1) {
+        db.users[userIndex].banned = banned;
+        if (banned) {
+            db.users[userIndex].approved = false;
+            db.users[userIndex].status = 'banned';
+        } else {
+            db.users[userIndex].status = 'pending';
+        }
         saveDB(db);
         res.json({ success: true });
     } else {

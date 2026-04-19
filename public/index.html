@@ -11,16 +11,21 @@
         .glass { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(10px); border: 1px solid rgba(16, 185, 129, 0.1); }
         .btn-approve { background: #10b981; transition: all 0.3s; }
         .btn-approve:hover { background: #059669; box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); }
-        .btn-deny { background: #ef4444; transition: all 0.3s; }
-        .btn-deny:hover { background: #dc2626; box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); }
+        .btn-deny { background: #64748b; transition: all 0.3s; }
+        .btn-deny:hover { background: #475569; }
+        .btn-ban { background: #ef4444; transition: all 0.3s; }
+        .btn-ban:hover { background: #dc2626; box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); }
+        .btn-unban { background: #f59e0b; transition: all 0.3s; }
+        .btn-unban:hover { background: #d97706; }
+        .section-title { color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px; margin-bottom: 16px; margin-top: 32px; }
     </style>
 </head>
-<body class="min-h-screen p-8">
+<body class="min-h-screen p-8 pb-20">
     <div class="max-w-5xl mx-auto">
         <header class="flex justify-between items-center mb-12">
             <div>
                 <h1 class="text-4xl font-bold text-emerald-500 tracking-tight">Nexvora Admin</h1>
-                <p class="text-slate-400 mt-2">Manage extension access and user approvals.</p>
+                <p class="text-slate-400 mt-2">Manage extension access and user security.</p>
             </div>
             <div class="glass px-6 py-3 rounded-2xl flex items-center gap-4">
                 <div class="w-3 h-3 bg-emerald-500 rounded-full shadow-[0_0_10px_#10b981]"></div>
@@ -29,28 +34,52 @@
         </header>
 
         <div class="glass rounded-3xl p-8 overflow-hidden">
-            <h2 class="text-xl font-semibold mb-6 flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-                Pending Approvals / Users
-            </h2>
             
+            <!-- Pending Requests -->
+            <h3 class="section-title">Pending Requests</h3>
+            <div class="overflow-x-auto mb-10">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="text-slate-500 text-xs font-medium border-b border-white/5">
+                            <th class="pb-3 px-4">Telegram ID</th>
+                            <th class="pb-3 px-4">First Seen</th>
+                            <th class="pb-3 px-4 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pendingTableBody"></tbody>
+                </table>
+            </div>
+
+            <!-- Approved Users -->
+            <h3 class="section-title text-emerald-500/80">Approved Active Users</h3>
+            <div class="overflow-x-auto mb-10">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="text-slate-500 text-xs font-medium border-b border-white/5">
+                            <th class="pb-3 px-4">Telegram ID</th>
+                            <th class="pb-3 px-4">Status</th>
+                            <th class="pb-3 px-4 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="approvedTableBody"></tbody>
+                </table>
+            </div>
+
+            <!-- Banned Users -->
+            <h3 class="section-title text-rose-500/80">Banned (Permanent Block)</h3>
             <div class="overflow-x-auto">
                 <table class="w-full text-left">
                     <thead>
-                        <tr class="text-slate-500 text-sm uppercase tracking-wider border-b border-white/5">
-                            <th class="pb-4 px-4 font-medium">Telegram ID</th>
-                            <th class="pb-4 px-4 font-medium">Status</th>
-                            <th class="pb-4 px-4 font-medium">First Seen</th>
-                            <th class="pb-4 px-4 text-right font-medium">Actions</th>
+                        <tr class="text-slate-500 text-xs font-medium border-b border-white/5">
+                            <th class="pb-3 px-4">Telegram ID</th>
+                            <th class="pb-3 px-4">Ban Status</th>
+                            <th class="pb-3 px-4 text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody id="userTableBody">
-                        <!-- Users will be injected here -->
-                    </tbody>
+                    <tbody id="bannedTableBody"></tbody>
                 </table>
             </div>
+
         </div>
     </div>
 
@@ -58,29 +87,49 @@
         async function fetchUsers() {
             const res = await fetch('/api/admin/users');
             const users = await res.json();
-            const body = document.getElementById('userTableBody');
-            body.innerHTML = '';
+            
+            const pendingBody = document.getElementById('pendingTableBody');
+            const approvedBody = document.getElementById('approvedTableBody');
+            const bannedBody = document.getElementById('bannedTableBody');
+
+            pendingBody.innerHTML = '';
+            approvedBody.innerHTML = '';
+            bannedBody.innerHTML = '';
 
             users.forEach(user => {
                 const tr = document.createElement('tr');
                 tr.className = 'border-b border-white/5 hover:bg-white/5 transition-colors';
                 
-                const statusClass = user.approved ? 'text-emerald-400 bg-emerald-400/10' : 'text-amber-400 bg-amber-400/10';
-                
-                tr.innerHTML = `
-                    <td class="py-4 px-4 font-mono text-emerald-500 font-semibold">${user.id}</td>
-                    <td class="py-4 px-4">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold ${statusClass}">${user.status.toUpperCase()}</span>
-                    </td>
-                    <td class="py-4 px-4 text-slate-400 text-sm">${new Date(user.firstSeen).toLocaleString()}</td>
-                    <td class="py-4 px-4 text-right">
-                        ${!user.approved ? 
-                            `<button onclick="toggleApproval('${user.id}', true)" class="btn-approve px-4 py-1.5 rounded-lg text-sm font-bold text-white uppercase">Approve</button>` :
-                            `<button onclick="toggleApproval('${user.id}', false)" class="btn-deny px-4 py-1.5 rounded-lg text-sm font-bold text-white uppercase">Revoke</button>`
-                        }
-                    </td>
-                `;
-                body.appendChild(tr);
+                if (user.banned) {
+                    tr.innerHTML = `
+                        <td class="py-4 px-4 font-mono text-rose-500 font-semibold">${user.id}</td>
+                        <td class="py-4 px-4"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-500">BANNED</span></td>
+                        <td class="py-4 px-4 text-right">
+                            <button onclick="toggleBan('${user.id}', false)" class="btn-unban px-3 py-1 rounded text-xs font-bold text-white">UNBAN</button>
+                        </td>
+                    `;
+                    bannedBody.appendChild(tr);
+                } else if (user.approved) {
+                    tr.innerHTML = `
+                        <td class="py-4 px-4 font-mono text-emerald-500 font-semibold">${user.id}</td>
+                        <td class="py-4 px-4"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400">ACTIVE</span></td>
+                        <td class="py-4 px-4 text-right flex gap-2 justify-end">
+                            <button onclick="toggleApproval('${user.id}', false)" class="btn-deny px-3 py-1 rounded text-xs font-bold text-white">REVOKE</button>
+                            <button onclick="toggleBan('${user.id}', true)" class="btn-ban px-3 py-1 rounded text-xs font-bold text-white">BAN</button>
+                        </td>
+                    `;
+                    approvedBody.appendChild(tr);
+                } else {
+                    tr.innerHTML = `
+                        <td class="py-4 px-4 font-mono text-slate-300">${user.id}</td>
+                        <td class="py-4 px-4 text-slate-500 text-xs">${new Date(user.firstSeen).toLocaleString()}</td>
+                        <td class="py-4 px-4 text-right flex gap-2 justify-end">
+                            <button onclick="toggleApproval('${user.id}', true)" class="btn-approve px-3 py-1 rounded text-xs font-bold text-white">APPROVE</button>
+                            <button onclick="toggleBan('${user.id}', true)" class="btn-ban px-3 py-1 rounded text-xs font-bold text-white text-rose-200">BAN</button>
+                        </td>
+                    `;
+                    pendingBody.appendChild(tr);
+                }
             });
         }
 
@@ -89,6 +138,16 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id, approved })
+            });
+            fetchUsers();
+        }
+
+        async function toggleBan(id, banned) {
+            if (banned && !confirm(`Are you sure you want to BAN ${id}? They will be permanently blocked.`)) return;
+            await fetch('/api/admin/ban', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, banned })
             });
             fetchUsers();
         }
