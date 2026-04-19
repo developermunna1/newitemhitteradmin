@@ -35,7 +35,17 @@
 
         <div class="glass rounded-3xl p-8 overflow-hidden">
             
+            <!-- Manual User Entry -->
+            <div class="mb-10 p-6 bg-emerald-500/5 rounded-2xl border border-emerald-500/10">
+                <h3 class="text-sm font-bold text-emerald-400 uppercase tracking-widest mb-4">Manual User Registration</h3>
+                <div class="flex gap-4">
+                    <input type="text" id="manualTgId" placeholder="Enter Telegram ID (e.g. 5410293848)" class="flex-1 bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 transition-colors">
+                    <button onclick="addUserManually()" class="btn-approve px-8 py-3 rounded-xl font-bold text-white shadow-lg shadow-emerald-500/20">ADD USER</button>
+                </div>
+            </div>
+
             <!-- Pending Requests -->
+
             <h3 class="section-title">Pending Requests</h3>
             <div class="overflow-x-auto mb-10">
                 <table class="w-full text-left">
@@ -151,6 +161,26 @@
             });
             fetchUsers();
         }
+
+        async function addUserManually() {
+            const idInput = document.getElementById('manualTgId');
+            const id = idInput.value.trim();
+            if (!id) return alert("Please enter a valid Telegram ID");
+
+            const res = await fetch('/api/admin/add-user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id })
+            });
+
+            if (res.ok) {
+                idInput.value = '';
+                fetchUsers();
+            } else {
+                alert("Failed to add user. Check console.");
+            }
+        }
+
 
         fetchUsers();
         setInterval(fetchUsers, 5000);

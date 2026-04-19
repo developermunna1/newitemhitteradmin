@@ -48,20 +48,39 @@ app.get('/api/check', (req, res) => {
 
     if (user) {
         if (user.banned) {
-            return res.json({ approved: false, banned: true, status: 'banned' });
+            return res.json({ approved: false, banned: true, status: 'banned', hits: user.hits || 0 });
         }
-        return res.json({ approved: user.approved, banned: false, status: user.status });
+        return res.json({ approved: user.approved, banned: false, status: user.status, hits: user.hits || 0 });
     } else {
         // Auto-register new ID as pending
-        db.users.push({ 
+        const newUser = { 
             id, 
             approved: false, 
             banned: false, 
             status: 'pending', 
+            hits: 0,
             firstSeen: new Date().toISOString() 
-        });
+        };
+        db.users.push(newUser);
         saveDB(db);
-        return res.json({ approved: false, banned: false, status: 'pending' });
+        return res.json({ approved: false, banned: false, status: 'pending', hits: 0 });
+    }
+});
+
+// Sync hits from extension
+app.post('/api/sync-hits', (req, res) => {
+    const { id, hits } = req.body;
+    if (!id) return res.status(400).json({ success: false, error: "No ID provided" });
+
+    const db = loadDB();
+    const userIndex = db.users.findIndex(u => u.id === id);
+
+    if (userIndex !== -1) {
+        db.users[userIndex].hits = hits;
+        saveDB(db);
+        res.json({ success: true });
+    } else {
+        res.status(404).json({ success: false, error: "User not found" });
     }
 });
 
@@ -70,6 +89,34 @@ app.get('/api/admin/users', (req, res) => {
     const db = loadDB();
     res.json(db.users);
 });
+
+// Admin API: Add user manually
+app.post('/api/admin/add-user', (req, res) => {
+    const { id } = req.body;
+    if (!id) return res.status(400).json({ success: false, error: "No ID provided" });
+
+    const db = loadDB();
+    const existing = db.users.find(u => u.id === id);
+
+    if (existing) {
+        existing.approved = true;
+        existing.banned = false;
+        existing.status = 'active';
+    } else {
+        db.users.push({
+            id,
+            approved: true,
+            banned: false,
+            status: 'active',
+            hits: 0,
+            firstSeen: new Date().toISOString()
+        });
+    }
+
+    saveDB(db);
+    res.json({ success: true });
+});
+
 
 // Admin API: Toggle approval
 app.post('/api/admin/approve', (req, res) => {
