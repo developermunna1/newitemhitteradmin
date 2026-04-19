@@ -33,9 +33,20 @@
             </div>
         </header>
 
-        <div class="glass rounded-3xl p-8 overflow-hidden">
-            
+            <!-- System Config -->
+            <div class="mb-10 p-6 bg-slate-500/5 rounded-2xl border border-white/5">
+                <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">System Configuration</h3>
+                <div class="flex flex-col gap-4">
+                    <div class="flex gap-4">
+                        <input type="text" id="botTokenInput" placeholder="Telegram Bot Token" class="flex-1 bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 transition-colors text-xs font-mono">
+                        <button onclick="saveBotConfig()" class="btn-deny px-8 py-3 rounded-xl font-bold text-white">SAVE TOKEN</button>
+                    </div>
+                    <p class="text-[10px] text-slate-500">Updating the token will restart the bot instance immediately.</p>
+                </div>
+            </div>
+
             <!-- Manual User Entry -->
+
             <div class="mb-10 p-6 bg-emerald-500/5 rounded-2xl border border-emerald-500/10">
                 <h3 class="text-sm font-bold text-emerald-400 uppercase tracking-widest mb-4">Manual User Registration</h3>
                 <div class="flex gap-4">
@@ -181,9 +192,33 @@
             }
         }
 
+        async function fetchConfig() {
+            const res = await fetch('/api/admin/config');
+            const config = await res.json();
+            document.getElementById('botTokenInput').value = config.botToken || '';
+        }
+
+        async function saveBotConfig() {
+            const botToken = document.getElementById('botTokenInput').value.trim();
+            if (!botToken) return alert("Please enter a token");
+
+            const res = await fetch('/api/admin/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ botToken })
+            });
+
+            if (res.ok) {
+                alert("Bot Token Updated & Restarted!");
+            } else {
+                alert("Failed to update token.");
+            }
+        }
 
         fetchUsers();
+        fetchConfig();
         setInterval(fetchUsers, 5000);
+
     </script>
 </body>
 </html>
