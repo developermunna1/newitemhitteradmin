@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexvora Admin | Approval Control</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Space Grotesk', sans-serif; background: #020617; color: #f8fafc; }
+        .glass { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(10px); border: 1px solid rgba(16, 185, 129, 0.1); }
+        .btn-approve { background: #10b981; transition: all 0.3s; }
+        .btn-approve:hover { background: #059669; box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); }
+        .btn-deny { background: #ef4444; transition: all 0.3s; }
+        .btn-deny:hover { background: #dc2626; box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); }
+    </style>
+</head>
+<body class="min-h-screen p-8">
+    <div class="max-w-5xl mx-auto">
+        <header class="flex justify-between items-center mb-12">
+            <div>
+                <h1 class="text-4xl font-bold text-emerald-500 tracking-tight">Nexvora Admin</h1>
+                <p class="text-slate-400 mt-2">Manage extension access and user approvals.</p>
+            </div>
+            <div class="glass px-6 py-3 rounded-2xl flex items-center gap-4">
+                <div class="w-3 h-3 bg-emerald-500 rounded-full shadow-[0_0_10px_#10b981]"></div>
+                <span class="font-semibold text-emerald-400">System Live</span>
+            </div>
+        </header>
+
+        <div class="glass rounded-3xl p-8 overflow-hidden">
+            <h2 class="text-xl font-semibold mb-6 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                Pending Approvals / Users
+            </h2>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="text-slate-500 text-sm uppercase tracking-wider border-b border-white/5">
+                            <th class="pb-4 px-4 font-medium">Telegram ID</th>
+                            <th class="pb-4 px-4 font-medium">Status</th>
+                            <th class="pb-4 px-4 font-medium">First Seen</th>
+                            <th class="pb-4 px-4 text-right font-medium">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userTableBody">
+                        <!-- Users will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchUsers() {
+            const res = await fetch('/api/admin/users');
+            const users = await res.json();
+            const body = document.getElementById('userTableBody');
+            body.innerHTML = '';
+
+            users.forEach(user => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-white/5 hover:bg-white/5 transition-colors';
+                
+                const statusClass = user.approved ? 'text-emerald-400 bg-emerald-400/10' : 'text-amber-400 bg-amber-400/10';
+                
+                tr.innerHTML = `
+                    <td class="py-4 px-4 font-mono text-emerald-500 font-semibold">${user.id}</td>
+                    <td class="py-4 px-4">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold ${statusClass}">${user.status.toUpperCase()}</span>
+                    </td>
+                    <td class="py-4 px-4 text-slate-400 text-sm">${new Date(user.firstSeen).toLocaleString()}</td>
+                    <td class="py-4 px-4 text-right">
+                        ${!user.approved ? 
+                            `<button onclick="toggleApproval('${user.id}', true)" class="btn-approve px-4 py-1.5 rounded-lg text-sm font-bold text-white uppercase">Approve</button>` :
+                            `<button onclick="toggleApproval('${user.id}', false)" class="btn-deny px-4 py-1.5 rounded-lg text-sm font-bold text-white uppercase">Revoke</button>`
+                        }
+                    </td>
+                `;
+                body.appendChild(tr);
+            });
+        }
+
+        async function toggleApproval(id, approved) {
+            await fetch('/api/admin/approve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, approved })
+            });
+            fetchUsers();
+        }
+
+        fetchUsers();
+        setInterval(fetchUsers, 5000);
+    </script>
+</body>
+</html>
